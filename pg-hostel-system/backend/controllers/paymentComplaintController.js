@@ -1,6 +1,8 @@
 const { Payment, Complaint } = require('../models/PaymentComplaint');
 const Property = require('../models/Property');
 const Booking = require('../models/Booking');
+const User = require('../models/User');
+const { sendPaymentConfirmation, sendRentReminder, sendManualWarning } = require('../utils/emailService');
 
 // ═══════════════ PAYMENT CONTROLLERS ═══════════════════════════════════════
 
@@ -8,11 +10,13 @@ const Booking = require('../models/Booking');
 const getMyPayments = async (req, res) => {
   try {
     const payments = await Payment.find({ student: req.user._id })
-      .populate('property', 'name address')
-      .populate('booking', 'roomNumber')
-      .sort({ dueDate: -1 });
+      .populate({ path: 'property', select: 'name address', options: { strictPopulate: false } })
+      .populate({ path: 'booking', select: 'roomNumber', options: { strictPopulate: false } })
+      .sort({ dueDate: -1 })
+      .lean();
     res.json({ success: true, payments });
   } catch (err) {
+    console.error('getMyPayments error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -49,8 +53,14 @@ const payRent = async (req, res) => {
         dueDate: nextDue,
       });
     }
+    // Send payment confirmation email
+    try {
+    const student = await User.findById(payment.student);
+    const property = await Property.findById(payment.property);
+    await sendPaymentConfirmation(student, payment, property);
+    } catch (emailErr) { console.error('Email error:', emailErr.message); }
 
-    res.json({ success: true, message: 'Payment recorded successfully', payment });
+res.json({ success: true, message: 'Payment recorded successfully! ✅', payment });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -62,11 +72,27 @@ const getOwnerPayments = async (req, res) => {
     const props = await Property.find({ owner: req.user._id }).select('_id');
     const ids = props.map(p => p._id);
     const payments = await Payment.find({ property: { $in: ids } })
-      .populate('student', 'name email phone')
-      .populate('property', 'name')
-      .populate('booking', 'roomNumber')
-      .sort({ dueDate: -1 });
+      .populate({ path: 'student', select: 'name email phone', options: { strictPopulate: false } })
+      .populate({ path: 'property', select: 'name', options: { strictPopulate: false } })
+      .populate({ path: 'booking', select: 'roomNumber', options: { strictPopulate: false } })
+      .sort({ dueDate: -1 })
+      .lean();
     res.json({ success: true, payments });
+  } catch (err) {
+    console.error('getOwnerPayments error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Send manual warning email
+const sendWarningEmail = async (req, res) => {
+  try {
+    const { studentId, propertyId, message } = req.body;
+    const student = await User.findById(studentId);
+    const property = await Property.findById(propertyId);
+    if (!student || !property) return res.status(404).json({ success: false, message: 'Student or property not found' });
+    await sendManualWarning(student.email, student.name, property.name, message);
+    res.json({ success: true, message: 'Warning email sent successfully!' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -103,10 +129,12 @@ const raiseComplaint = async (req, res) => {
 const getMyComplaints = async (req, res) => {
   try {
     const complaints = await Complaint.find({ raisedBy: req.user._id })
-      .populate('property', 'name address')
-      .sort({ createdAt: -1 });
+      .populate({ path: 'property', select: 'name address', options: { strictPopulate: false } })
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, complaints });
   } catch (err) {
+    console.error('getMyComplaints error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -117,11 +145,13 @@ const getOwnerComplaints = async (req, res) => {
     const props = await Property.find({ owner: req.user._id }).select('_id');
     const ids = props.map(p => p._id);
     const complaints = await Complaint.find({ property: { $in: ids } })
-      .populate('raisedBy', 'name email phone')
-      .populate('property', 'name address')
-      .sort({ createdAt: -1 });
+      .populate({ path: 'raisedBy', select: 'name email phone', options: { strictPopulate: false } })
+      .populate({ path: 'property', select: 'name address', options: { strictPopulate: false } })
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, complaints });
   } catch (err) {
+    console.error('getOwnerComplaints error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -159,4 +189,4 @@ const addComment = async (req, res) => {
   }
 };
 
-module.exports = { getMyPayments, payRent, getOwnerPayments, raiseComplaint, getMyComplaints, getOwnerComplaints, updateComplaint, addComment };
+module.exports = { getMyPayments, payRent, getOwnerPayments, sendWarningEmail, raiseComplaint, getMyComplaints, getOwnerComplaints, updateComplaint, addComment };

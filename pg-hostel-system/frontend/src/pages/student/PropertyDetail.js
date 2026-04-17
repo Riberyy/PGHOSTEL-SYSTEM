@@ -5,6 +5,7 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { FiMapPin, FiPhone, FiMail, FiArrowLeft } from 'react-icons/fi';
 
+
 const AMENITY_ICONS = { wifi:'📶',ac:'❄️',parking:'🅿️',laundry:'🫧',gym:'💪',kitchen:'🍳',security:'🔐',mess:'🍽️',tv:'📺',power_backup:'⚡' };
 
 const PropertyDetail = () => {
@@ -16,6 +17,7 @@ const PropertyDetail = () => {
   const [showBook, setShowBook] = useState(false);
   const [bookForm, setBookForm] = useState({ roomNumber: '', checkIn: '' });
   const [booking, setBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(null);
 
   useEffect(() => {
     api.get(`/properties/${id}`)
@@ -30,20 +32,82 @@ const PropertyDetail = () => {
     setBooking(true);
     try {
       const { data } = await api.post('/bookings', { propertyId: id, ...bookForm });
-      toast.success('🎉 Booking confirmed!');
-      if (data.booking.roommate) {
-        toast.success(`Matched with roommate: ${data.booking.roommate.name} (${data.booking.matchScore}% compatible)`);
+
+      if (data.requiresConfirmation) {
+        if (window.confirm(data.message + '\n\nClick OK to continue anyway.')) {
+          const { data: forced } = await api.post('/bookings', { propertyId: id, ...bookForm, forceBook: true });
+          setShowBook(false);
+          setBookingSuccess({
+            roomNumber: bookForm.roomNumber,
+            roomType: forced.booking?.roomType || '',
+            rentAmount: forced.booking?.rentAmount || 0,
+            matchScore: forced.booking?.matchScore || 0,
+            roommate: forced.booking?.roommate || null,
+          });
+          toast.success('🎉 Booking done successfully!');
+        }
+        setBooking(false);
+        return;
       }
+
       setShowBook(false);
-      navigate('/student/bookings');
+      setBookingSuccess({
+        roomNumber: bookForm.roomNumber,
+        roomType: data.booking?.roomType || '',
+        rentAmount: data.booking?.rentAmount || 0,
+        matchScore: data.booking?.matchScore || 0,
+        roommate: data.booking?.roommate || null,
+      });
+      toast.success('🎉 Booking done successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Booking failed');
     } finally { setBooking(false); }
   };
 
+  // Loading state
   if (loading) return <div className="spinner-wrap"><div className="spinner"/></div>;
+
+  // Not found
   if (!property) return <div className="empty-state"><h3>Property not found</h3></div>;
 
+  // SUCCESS SCREEN - must be before availableRooms
+  if (bookingSuccess) {
+    return (
+      <div style={{ maxWidth: 480, margin: '4rem auto', textAlign: 'center' }}>
+        <div className="card">
+          <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎉</div>
+          <h2 style={{ marginBottom: '0.5rem', color: '#10b981' }}>Booking Done Successfully!</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+            You have successfully joined this PG/Hostel. A confirmation email has been sent to you.
+          </p>
+          <div style={{ background: 'var(--primary-light)', borderRadius: 8, padding: '1rem', marginBottom: '1rem', textAlign: 'left' }}>
+            <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{property?.name}</p>
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+              Room: {bookingSuccess?.roomNumber} {bookingSuccess?.roomType ? `(${bookingSuccess.roomType})` : ''}
+            </p>
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+              Monthly Rent: ₹{bookingSuccess?.rentAmount?.toLocaleString()}
+            </p>
+          </div>
+          {bookingSuccess?.roommate && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '1rem', marginBottom: '1rem', textAlign: 'left' }}>
+              <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>🤝 Roommate Matched!</p>
+              {bookingSuccess.matchScore > 0 && (
+                <p style={{ color: '#16a34a', fontSize: '0.875rem', fontWeight: 500 }}>
+                  {bookingSuccess.matchScore}% compatible
+                </p>
+              )}
+            </div>
+          )}
+          <button className="btn btn-primary btn-full" onClick={() => navigate('/student/bookings')}>
+            View My Bookings
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Available rooms - AFTER success check
   const availableRooms = property.rooms?.filter(r => r.isAvailable) || [];
 
   return (
@@ -71,7 +135,6 @@ const PropertyDetail = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>
         <div>
-          {/* Header */}
           <div className="card mb-2">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
@@ -95,13 +158,11 @@ const PropertyDetail = () => {
             </div>
           </div>
 
-          {/* Description */}
           <div className="card mb-2">
             <h3 style={{ marginBottom: '0.75rem' }}>About this property</h3>
             <p style={{ color: 'var(--text-muted)', lineHeight: 1.7 }}>{property.description}</p>
           </div>
 
-          {/* Amenities */}
           <div className="card mb-2">
             <h3 style={{ marginBottom: '0.75rem' }}>Amenities</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -113,7 +174,6 @@ const PropertyDetail = () => {
             </div>
           </div>
 
-          {/* Rooms */}
           <div className="card mb-2">
             <h3 style={{ marginBottom: '1rem' }}>Available Rooms</h3>
             {availableRooms.length === 0 ? (
@@ -138,7 +198,6 @@ const PropertyDetail = () => {
             )}
           </div>
 
-          {/* Rules */}
           {property.rules?.length > 0 && (
             <div className="card mb-2">
               <h3 style={{ marginBottom: '0.75rem' }}>House Rules</h3>
@@ -149,7 +208,6 @@ const PropertyDetail = () => {
           )}
         </div>
 
-        {/* Sidebar */}
         <div>
           <div className="card mb-2">
             <h3 style={{ marginBottom: '0.75rem' }}>Owner Details</h3>

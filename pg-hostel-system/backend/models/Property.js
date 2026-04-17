@@ -67,9 +67,9 @@ propertySchema.pre('save', function (next) {
   next();
 });
 
-// Virtual: available rooms count
+// Virtual: available rooms count (guard: rooms may be omitted when property is populated with .select())
 propertySchema.virtual('availableRooms').get(function () {
-  return this.rooms.filter(r => r.isAvailable).length;
+  return (this.rooms || []).filter(r => r.isAvailable).length;
 });
 
 propertySchema.set('toJSON', { virtuals: true });

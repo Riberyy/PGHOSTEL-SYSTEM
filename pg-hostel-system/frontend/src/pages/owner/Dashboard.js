@@ -11,20 +11,39 @@ const OwnerDashboard = () => {
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([api.get('/properties/owner/mine'), api.get('/bookings/owner'), api.get('/payments/owner'), api.get('/complaints/owner')])
-      .then(([p, b, pay, c]) => {
-        const activeBookings = b.data.bookings.filter(x => x.status === 'confirmed');
-        const pendingPay = pay.data.payments.filter(x => x.status !== 'paid');
-        const revenue = pay.data.payments.filter(x => x.status === 'paid').reduce((s, x) => s + x.amount, 0);
-        const openComp = c.data.complaints.filter(x => ['open','in_progress'].includes(x.status));
-        setStats({ properties:p.data.properties.length, bookings:activeBookings.length, pendingPayments:pendingPay.length, openComplaints:openComp.length, revenue });
-        setRecentBookings(b.data.bookings.slice(0, 5));
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+ useEffect(() => {
+  const fetch = async () => {
+    try {
+      const [p, b, pay, c] = await Promise.allSettled([
+        api.get('/properties/owner/mine'),
+        api.get('/bookings/owner'),
+        api.get('/payments/owner'),
+        api.get('/complaints/owner'),
+      ]);
 
+      const props = p.status === 'fulfilled' ? p.value.data.properties : [];
+      const bookings = b.status === 'fulfilled' ? b.value.data.bookings : [];
+      const payments = pay.status === 'fulfilled' ? pay.value.data.payments : [];
+      const complaints = c.status === 'fulfilled' ? c.value.data.complaints : [];
+
+      const activeBookings = bookings.filter(x => x.status === 'confirmed');
+      const pendingPay = payments.filter(x => x.status !== 'paid');
+      const revenue = payments.filter(x => x.status === 'paid').reduce((s, x) => s + x.amount, 0);
+      const openComp = complaints.filter(x => ['open', 'in_progress'].includes(x.status));
+
+      setStats({
+        properties: props.length,
+        bookings: activeBookings.length,
+        pendingPayments: pendingPay.length,
+        openComplaints: openComp.length,
+        revenue
+      });
+      setRecentBookings(bookings.slice(0, 5));
+    } catch (_) {}
+    finally { setLoading(false); }
+  };
+  fetch();
+}, []);
   if (loading) return <div className="spinner-wrap"><div className="spinner"/></div>;
 
   const statCards = [

@@ -54,17 +54,6 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
-```env
-MONGO_URI=mongodb://localhost:27017/pg_hostel_db
-JWT_SECRET=your_super_secret_key
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_gmail_app_password
-```
-
 Start the backend:
 ```bash
 npm run dev       # development (with nodemon)
@@ -73,28 +62,6 @@ npm start         # production
 Backend runs at: **http://localhost:5000**
 
 ---
-
-### 3. Seed Demo Users
-
-Create a file `backend/seed.js` and run it once:
-
-```js
-const mongoose = require('mongoose');
-const User = require('./models/User');
-require('dotenv').config();
-
-mongoose.connect(process.env.MONGO_URI).then(async () => {
-  await User.deleteMany({ email: { $in: ['admin@pg.com','owner@pg.com','student@pg.com'] } });
-  await User.create([
-    { name:'Admin User',   email:'admin@pg.com',   password:'admin123',   phone:'9000000001', role:'admin' },
-    { name:'Owner Raj',    email:'owner@pg.com',   password:'owner123',   phone:'9000000002', role:'owner' },
-    { name:'Student Priya',email:'student@pg.com', password:'student123', phone:'9000000003', role:'student',
-      preferences:{ sleepSchedule:'early_bird', foodPreference:'vegetarian', lifestyle:'studious', gender:'female' } },
-  ]);
-  console.log('✅ Demo users created');
-  process.exit(0);
-});
-```
 
 ```bash
 node seed.js
@@ -116,13 +83,6 @@ Frontend runs at: **http://localhost:3000**
 
 ---
 
-## 👥 Demo Credentials
-
-| Role    | Email             | Password   |
-|---------|-------------------|------------|
-| Admin   | admin@pg.com      | admin123   |
-| Owner   | owner@pg.com      | owner123   |
-| Student | student@pg.com    | student123 |
 
 ---
 
@@ -181,46 +141,6 @@ When a student books a shared PG room, the system:
 | Scheduler | node-cron                     |
 
 ---
-
-## 📡 API Endpoints
-
-### Auth
-| Method | Endpoint              | Access  |
-|--------|-----------------------|---------|
-| POST   | /api/auth/register    | Public  |
-| POST   | /api/auth/login       | Public  |
-| GET    | /api/auth/me          | Private |
-| PUT    | /api/auth/profile     | Private |
-| PUT    | /api/auth/change-password | Private |
-
-### Properties
-| Method | Endpoint                      | Access        |
-|--------|-------------------------------|---------------|
-| GET    | /api/properties               | Public        |
-| GET    | /api/properties/:id           | Public        |
-| GET    | /api/properties/owner/mine    | Owner         |
-| POST   | /api/properties               | Owner         |
-| PUT    | /api/properties/:id           | Owner         |
-| DELETE | /api/properties/:id           | Owner         |
-
-### Bookings
-| Method | Endpoint                  | Access  |
-|--------|---------------------------|---------|
-| POST   | /api/bookings             | Student |
-| GET    | /api/bookings/my          | Student |
-| GET    | /api/bookings/owner       | Owner   |
-| PUT    | /api/bookings/:id/cancel  | Student |
-
-### Admin
-| Method | Endpoint                          | Access |
-|--------|-----------------------------------|--------|
-| GET    | /api/admin/dashboard              | Admin  |
-| GET    | /api/admin/users                  | Admin  |
-| PUT    | /api/admin/users/:id/toggle       | Admin  |
-| GET    | /api/admin/properties             | Admin  |
-| PUT    | /api/admin/properties/:id/review  | Admin  |
-| GET    | /api/admin/bookings               | Admin  |
-| GET    | /api/admin/complaints             | Admin  |
 
 ---
 

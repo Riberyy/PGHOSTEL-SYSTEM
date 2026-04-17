@@ -6,28 +6,39 @@ const { Payment, Complaint } = require('../models/PaymentComplaint');
 // @desc  Dashboard analytics
 const getDashboard = async (req, res) => {
   try {
-    const [totalUsers, totalProperties, totalBookings, pendingProperties, totalRevenue, openComplaints] =
-      await Promise.all([
-        User.countDocuments({ role: { $ne: 'admin' } }),
-        Property.countDocuments(),
-        Booking.countDocuments(),
-        Property.countDocuments({ status: 'pending' }),
-        Payment.aggregate([{ $match: { status: 'paid' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
-        Complaint.countDocuments({ status: { $in: ['open', 'in_progress'] } }),
+    const totalUsers = await User.countDocuments({ role: { $ne: 'admin' } });
+    const totalProperties = await Property.countDocuments();
+    const totalBookings = await Booking.countDocuments();
+    const pendingProperties = await Property.countDocuments({ status: 'pending' });
+    const openComplaints = await Complaint.countDocuments({ status: { $in: ['open', 'in_progress'] } });
+
+    let totalRevenue = 0;
+    let monthlyRevenue = [];
+
+    try {
+      const revenueResult = await Payment.aggregate([
+        { $match: { status: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
+      totalRevenue = revenueResult[0]?.total || 0;
+
+      const monthlyResult = await Payment.aggregate([
+        { $match: { status: 'paid', month: { $exists: true, $ne: null } } },
+        { $group: { _id: '$month', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { _id: -1 } },
+        { $limit: 6 }
+      ]);
+      monthlyRevenue = monthlyResult.reverse();
+    } catch (aggErr) {
+      console.error('Aggregation error:', aggErr.message);
+    }
 
     const recentBookings = await Booking.find()
-      .populate('student', 'name email')
-      .populate('property', 'name type')
+      .populate({ path: 'student', select: 'name email', options: { strictPopulate: false } })
+      .populate({ path: 'property', select: 'name type', options: { strictPopulate: false } })
       .sort({ createdAt: -1 })
-      .limit(5);
-
-    const monthlyRevenue = await Payment.aggregate([
-      { $match: { status: 'paid' } },
-      { $group: { _id: '$month', total: { $sum: '$amount' }, count: { $sum: 1 } } },
-      { $sort: { _id: -1 } },
-      { $limit: 6 },
-    ]);
+      .limit(5)
+      .lean();
 
     res.json({
       success: true,
@@ -36,13 +47,14 @@ const getDashboard = async (req, res) => {
         totalProperties,
         totalBookings,
         pendingProperties,
-        totalRevenue: totalRevenue[0]?.total || 0,
+        totalRevenue,
         openComplaints,
       },
       recentBookings,
-      monthlyRevenue: monthlyRevenue.reverse(),
+      monthlyRevenue,
     });
   } catch (err) {
+    console.error('Dashboard error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -53,8 +65,12 @@ const getAllUsers = async (req, res) => {
     const { role, page = 1, limit = 20, search } = req.query;
     const query = { role: { $ne: 'admin' } };
     if (role) query.role = role;
-    if (search) query.$or = [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
-
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
     const total = await User.countDocuments(query);
     const users = await User.find(query)
       .skip((page - 1) * limit)
@@ -62,6 +78,7 @@ const getAllUsers = async (req, res) => {
       .sort({ createdAt: -1 });
     res.json({ success: true, users, total, pages: Math.ceil(total / limit) });
   } catch (err) {
+    console.error('GetAllUsers error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -119,12 +136,14 @@ const reviewProperty = async (req, res) => {
 const getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
-      .populate('student', 'name email')
-      .populate('property', 'name type address')
+      .populate({ path: 'student', select: 'name email', options: { strictPopulate: false } })
+      .populate({ path: 'property', select: 'name type address', options: { strictPopulate: false } })
       .sort({ createdAt: -1 })
-      .limit(100);
+      .limit(100)
+      .lean();
     res.json({ success: true, bookings });
   } catch (err) {
+    console.error('GetAllBookings error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -133,11 +152,13 @@ const getAllBookings = async (req, res) => {
 const getAllComplaints = async (req, res) => {
   try {
     const complaints = await Complaint.find()
-      .populate('raisedBy', 'name email')
-      .populate('property', 'name address')
-      .sort({ createdAt: -1 });
+      .populate({ path: 'raisedBy', select: 'name email', options: { strictPopulate: false } })
+      .populate({ path: 'property', select: 'name address', options: { strictPopulate: false } })
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, complaints });
   } catch (err) {
+    console.error('getAllComplaints error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };

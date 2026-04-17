@@ -5,12 +5,12 @@ const { getDashboard, getAllUsers, toggleUser, getAllProperties, reviewProperty,
 
 router.use(protect, authorize('admin'));
 
-router.get('/dashboard',              getDashboard);
-router.get('/users',                  getAllUsers);
-router.put('/users/:id/toggle',       toggleUser);
-router.get('/properties',             getAllProperties);
-router.put('/properties/:id/review',  reviewProperty);
-router.get('/bookings',               getAllBookings);
-router.get('/complaints',             getAllComplaints);
+router.get('/dashboard',             getDashboard);
+router.get('/users',                 getAllUsers);
+router.put('/users/:id/toggle',      toggleUser);
+router.get('/properties',            getAllProperties);
+router.put('/properties/:id/review', reviewProperty);
+router.get('/bookings',              getAllBookings);
+router.get('/complaints',            getAllComplaints);
 
 module.exports = router;

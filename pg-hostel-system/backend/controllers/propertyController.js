@@ -48,12 +48,32 @@ const getProperty = async (req, res) => {
 // @route POST /api/properties
 const createProperty = async (req, res) => {
   try {
-    const data = JSON.parse(req.body.data || '{}');
-    const images = (req.files || []).map(f => ({ url: f.path, publicId: f.filename }));
+    let data = {};
+    try {
+      data = JSON.parse(req.body.data || '{}');
+    } catch (e) {
+      data = req.body;
+    }
 
-    const property = await Property.create({ ...data, owner: req.user._id, images, status: 'pending' });
-    res.status(201).json({ success: true, message: 'Property submitted for approval', property });
+    const images = (req.files || []).map(f => ({ 
+      url: f.path || f.secure_url || '', 
+      publicId: f.filename || f.public_id || '' 
+    }));
+
+    const property = await Property.create({ 
+      ...data, 
+      owner: req.user._id, 
+      images, 
+      status: 'pending' 
+    });
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Property submitted for approval', 
+      property 
+    });
   } catch (err) {
+    console.error('createProperty error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };

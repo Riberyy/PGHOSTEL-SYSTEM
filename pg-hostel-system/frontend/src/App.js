@@ -4,6 +4,9 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './index.css';
 
+// Landing
+import LandingPage from './pages/LandingPage';
+
 // Auth
 import Login    from './pages/Login';
 import Register from './pages/Register';
@@ -63,7 +66,7 @@ const App = () => (
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
 
         {/* Auth */}
         <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
@@ -101,7 +104,7 @@ const App = () => (
           <Route path="complaints"    element={<AdminComplaints />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   </AuthProvider>

@@ -48,12 +48,6 @@ const Login = () => {
         <p className="text-muted mt-2" style={{ textAlign: 'center' }}>
           Don't have an account? <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 500 }}>Register</Link>
         </p>
-        {/* <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>
-          <strong>Demo credentials:</strong><br />
-          Admin: admin@pg.com / admin123<br />
-          Owner: owner@pg.com / owner123<br />
-          Student: student@pg.com / student123
-        </div> */}
       </div>
     </div>
   );
