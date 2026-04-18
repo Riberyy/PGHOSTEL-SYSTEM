@@ -9,27 +9,13 @@ dotenv.config();
 const app = express();
 
 // CORS: localhost for dev + production frontends from FRONTEND_URL (comma-separated for Vercel previews, etc.)
-const corsOrigins = new Set([
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  ...(process.env.FRONTEND_URL || '')
-    .split(',')
-    .map((o) => o.trim().replace(/\/$/, ''))
-    .filter(Boolean),
-]);
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true);
-      if (corsOrigins.has(origin)) return cb(null, true);
-      return cb(null, false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
